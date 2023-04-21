@@ -2,10 +2,14 @@ package token
 
 type TokenType string
 type Token struct {
-	Type    TokenType
-	Literal string
+	Type      TokenType
+	Literal   string
+	HasAssign bool
+	Line      int
+	Column    int
 }
 
+// TokenTypes
 const (
 	// keywords
 	AUTO     = "AUTO"
@@ -42,11 +46,10 @@ const (
 	WHILE    = "WHILE"
 
 	// identifiers and literals
-	IDENT   = "IDENT"
-	INTL    = "INTL"
-	CHARL   = "CHARL"
-	STRINGL = "STRINGL"
-	REALL   = "REALL"
+	IDENTIFIER = "IDENTIFIER"
+	NUMERICL   = "NUMERICL"
+	CHARL      = "CHARL"
+	STRINGL    = "STRINGL"
 
 	// Operators and separators
 	ASSIGN    = "="
@@ -74,8 +77,9 @@ const (
 	AND       = "&&"
 	OR        = "||"
 	NOT       = "!"
+	QUESTION  = "?"
 
-	BITAND  = "&"
+	AMP     = "&"
 	BITANDA = "&="
 	BITOR   = "|"
 	BITORA  = "|="
@@ -88,6 +92,60 @@ const (
 	DOT   = "."
 	ARROW = "->"
 
+	LPAREN    = "("
+	RPAREN    = ")"
+	LSQUARE   = "["
+	RSQUARE   = "]"
+	LBRACE    = "{"
+	RBRACE    = "}"
+	COMMA     = ","
+	SEMICOLON = ";"
+	COLON     = ":"
+
 	EOF     = "EOF"
 	ILLEGAL = "ILLEGAL"
 )
+
+var keywords = map[string]TokenType{
+	"auto":     AUTO,
+	"break":    BREAK,
+	"case":     CASE,
+	"char":     CHAR,
+	"const":    CONST,
+	"continue": CONTINUE,
+	"default":  DEFAULT,
+	"do":       DO,
+	"double":   DOUBLE,
+	"else":     ELSE,
+	"enum":     ENUM,
+	"extern":   EXTERN,
+	"float":    FLOAT,
+	"for":      FOR,
+	"goto":     GOTO,
+	"if":       IF,
+	"int":      INT,
+	"long":     LONG,
+	"register": REGISTER,
+	"return":   RETURN,
+	"short":    SHORT,
+	"signed":   SIGNED,
+	"sizeof":   SIZEOF,
+	"static":   STATIC,
+	"struct":   STRUCT,
+	"switch":   SWITCH,
+	"typedef":  TYPEDEF,
+	"union":    UNION,
+	"unsigned": UNSIGNED,
+	"void":     VOID,
+	"volatile": VOLATILE,
+	"while":    WHILE,
+}
+
+func LookupIdent(ident string) TokenType {
+	keyword, ok := keywords[ident]
+	if !ok {
+		return IDENTIFIER
+	}
+
+	return keyword
+}
