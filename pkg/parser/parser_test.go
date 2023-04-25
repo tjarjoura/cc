@@ -34,6 +34,9 @@ func TestParseVariableDeclaration(t *testing.T) {
 		{"const int *volatile const const const*const x;", "x", "", "((const int) * const volatile) * const", ""},
 		{"int x[2];", "x", "", "(int)[]", ""},
 		{"int x[2][3];", "x", "", "((int)[])[]", ""},
+		{"int *x[2][3];", "x", "", "(((int) *)[])[]", ""},
+		{"int (*x)[2][3];", "x", "", "(((int)[])[]) *", ""},
+		{"int (*x[2])[3];", "x", "", "(((int)[]) *)[]", ""},
 	}
 
 	for _, tt := range tests {
