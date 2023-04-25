@@ -47,7 +47,8 @@ const (
 
 	// identifiers and literals
 	IDENTIFIER = "IDENTIFIER"
-	NUMERICL   = "NUMERICL"
+	INTL       = "INTL"
+	FLOATL     = "FLOATL"
 	CHARL      = "CHARL"
 	STRINGL    = "STRINGL"
 

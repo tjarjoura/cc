@@ -3,6 +3,7 @@ package lexer
 import (
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/tjarjoura/cc/pkg/token"
 )
@@ -320,7 +321,11 @@ func (l *Lexer) NextToken() token.Token {
 				Line: line, Column: column}
 		} else if isDigit(l.char) {
 			number := l.readNumber()
-			return token.Token{Type: token.NUMERICL, Literal: number,
+			var tokenType token.TokenType = token.INTL
+			if strings.IndexByte(number, '.') > -1 || strings.IndexByte(number, 'e') > -1 {
+				tokenType = token.FLOATL
+			}
+			return token.Token{Type: tokenType, Literal: number,
 				Line: line, Column: column}
 		} else {
 			tok = token.Token{Type: token.ILLEGAL,
