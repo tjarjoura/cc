@@ -28,6 +28,8 @@ const (
 var precedenceMap = map[token.TokenType]int{}
 
 func (p *Parser) registerParseFns() {
+	p.prefixParseFns = map[token.TokenType]prefixParseFn{}
+	p.infixParseFns = map[token.TokenType]infixParseFn{}
 	p.prefixParseFns[token.INTL] = p.parseIntegerLiteral
 }
 

@@ -150,13 +150,18 @@ func (p *Parser) parseDeclarations() []ast.Declaration {
 			return nil
 		}
 
-		decls = append(decls, p.parseDeclaratorLeft(typeSpec))
-
-		if p.peekTokenIs(token.ASSIGN) {
+		decl := p.parseDeclaratorLeft(typeSpec)
+		if p.peekTokenIs(token.ASSIGN) { // also define the variable
 			p.nextToken()
 			p.nextToken()
-			definition := p.parseExpression()
+			definition := p.parseExpression(LOWEST)
+			varDecl, ok := decl.(*ast.VariableDeclaration)
+			if ok {
+				varDecl.Definition = definition
+			}
 		}
+
+		decls = append(decls, decl)
 
 		if p.peekTokenIs(token.COMMA) {
 			p.nextToken()

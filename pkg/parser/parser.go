@@ -31,6 +31,8 @@ type Parser struct {
 func New(l *lexer.Lexer) *Parser {
 	p := Parser{l: l, errors: []ParseError{}}
 
+	p.registerParseFns()
+
 	p.nextToken()
 	p.nextToken()
 	return &p
