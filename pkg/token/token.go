@@ -86,6 +86,7 @@ const (
 	BITORA  = "|="
 	BITXOR  = "^"
 	BITXORA = "^="
+	BITNOT  = "~"
 
 	INC = "++"
 	DEC = "--"

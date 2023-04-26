@@ -242,6 +242,8 @@ func (l *Lexer) NextToken() token.Token {
 		if !ok {
 			tok = token.Token{Type: token.NOT, Literal: string(l.char)}
 		}
+	case '~':
+		tok = token.Token{Type: token.BITNOT, Literal: string(l.char)}
 	case '<':
 		tok, ok = l.checkMultiCharOp('<', '=', token.LSHIFTA)
 		if !ok {

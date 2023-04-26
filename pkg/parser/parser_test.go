@@ -116,3 +116,48 @@ func TestParseMultipleDeclarations(t *testing.T) {
 		}
 	}
 }
+
+func TestParseExpression(t *testing.T) {
+	tests := []struct {
+		input        string
+		expectedExpr string
+	}{
+		{"int x = 3;", "3"},
+		{"int x = 3 + 4;", "(3 + 4)"},
+		{"int x = 3 + 4 + 5;", "((3 + 4) + 5)"},
+		{"int x = 3 + 4 * 5;", "(3 + (4 * 5))"},
+		{"int x = 3/ 9 + 4 * 5;", "((3 / 9) + (4 * 5))"},
+		{"int x = 3|4&5-6>>4<<2*9+4/2%8^4<2>9==10!=11;",
+			"(3 | ((4 & (((5 - 6) >> 4) << ((2 * 9) + ((4 / 2) % 8)))) ^ ((((4 < 2) > 9) == 10) != 11)))"},
+		{"int x = 3.0;", "3.0"},
+		{"int x = ~7 * 3;", "((~7) * 3)"},
+		{"int x = ~(7 * 3);", "(~(7 * 3))"},
+		{"int x = !~*&x*99;", "((!(~(*(&x)))) * 99)"},
+	}
+
+	for _, test := range tests {
+		p := New(lexer.New(test.input))
+		tUnit := p.Parse()
+		checkErrors(t, p)
+
+		decls := tUnit.Declarations
+		if len(decls) != 1 {
+			t.Fatalf("expected len(decls)=%d, got=%d\n", 1, len(decls))
+		}
+
+		varDecl, ok := decls[0].(*ast.VariableDeclaration)
+		if !ok {
+			t.Fatalf("expected decl to be *ast.VariableDeclaration, got=%T",
+				decls[0])
+		}
+
+		if varDecl.Definition == nil {
+			t.Fatalf("variable definition was nil")
+		}
+
+		if varDecl.Definition.String() != test.expectedExpr {
+			t.Fatalf("expected definition to be=%s, got=%s",
+				test.expectedExpr, varDecl.Definition.String())
+		}
+	}
+}
