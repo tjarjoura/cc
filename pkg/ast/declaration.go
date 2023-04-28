@@ -140,7 +140,15 @@ type VariableDeclaration struct {
 	Definition   Expression
 }
 
-func (v *VariableDeclaration) declarationNode()      {}
-func (v *VariableDeclaration) String() string        { return fmt.Sprintf("%s %s", v.VarType, v.Name) }
+func (v *VariableDeclaration) declarationNode() {}
+func (v *VariableDeclaration) String() string {
+	ret := fmt.Sprintf("%s %s", v.VarType, v.Name)
+	if v.Definition != nil {
+		return fmt.Sprintf("%s = %s", ret, v.Definition.String())
+	}
+
+	return ret
+}
+
 func (v *VariableDeclaration) Type() Declaration     { return v.VarType }
 func (v *VariableDeclaration) SetType(d Declaration) { v.VarType = d }

@@ -96,10 +96,6 @@ func (l *Lexer) skipWhitespaceAndComments() {
 func (l *Lexer) checkMultiCharOp(next byte, next2 byte,
 	tt token.TokenType) (token.Token, bool) {
 	prev := l.char
-	if next == '|' {
-		fmt.Printf("checkMultiCharOp. l.char=%c l.peek=%c l.peek2=%c\n",
-			l.char, l.peekChar(), l.peek2Char())
-	}
 	if next2 == 0 {
 		if l.peekChar() == next {
 			l.readChar()

@@ -257,20 +257,53 @@ func TestParseErrors(t *testing.T) {
 	}
 }
 
-/*
 func TestParseFunctionDefinition(t *testing.T) {
 	input := `
 int main(int argc, char **argv) {
-	return 0;
+	int x=2, y;
+	char z=72-6*8, *h;
+	return z*2;
 }`
+
+	testStmts := []string{
+		"int x = 2, int y;",
+		"char z = (72 - (6 * 8)), (char) * h;",
+		"return (z * 2);",
+	}
 
 	p := New(lexer.New(input))
 	tUnit := p.Parse()
 	checkErrors(t, p)
 
-	decls := tUnit.Declarations
+	declStmts := tUnit.DeclarationStatements
+	if len(declStmts) != 1 {
+		t.Fatalf("expected len(declStmts)=%d, got=%d\n", 1, len(declStmts))
+	}
+
+	decls := declStmts[0].Declarations
 	if len(decls) != 1 {
 		t.Fatalf("expected len(decls)=%d, got=%d\n", 1, len(decls))
 	}
+
+	fnDecl, ok := declStmts[0].Declarations[0].(*ast.FunctionDeclaration)
+	if !ok {
+		t.Fatalf("expected decl to be *ast.FunctionDeclaration, got=%T",
+			declStmts[0].Declarations[0])
+	}
+
+	if fnDecl.Body == nil {
+		t.Fatalf("expected fnDecl.Body != nil")
+	}
+
+	stmts := fnDecl.Body.Statements
+	if len(stmts) != len(testStmts) {
+		t.Fatalf("expected len(fnDecl.Body.Statements=1, got=%d",
+			len(fnDecl.Body.Statements))
+	}
+
+	for i, stmt := range testStmts {
+		if stmt != stmts[i].String() {
+			t.Fatalf("expected %s=%s", testStmts[i], stmts[i])
+		}
+	}
 }
-*/
