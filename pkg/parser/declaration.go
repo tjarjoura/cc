@@ -1,8 +1,8 @@
 package parser
 
 import (
-	"bytes"
 	"fmt"
+	"strings"
 
 	"github.com/tjarjoura/cc/pkg/ast"
 	"github.com/tjarjoura/cc/pkg/token"
@@ -108,7 +108,6 @@ func (p *Parser) parseDeclaratorRight(decl ast.Declaration, insideParen bool) as
 	switch p.peekToken.Type {
 	case token.LSQUARE:
 		p.nextToken()
-		// TODO parse expression for array size
 		var expr ast.Expression
 		if !p.peekTokenIs(token.RSQUARE) {
 			p.nextToken()
@@ -155,9 +154,8 @@ func (p *Parser) parseDeclaratorRight(decl ast.Declaration, insideParen bool) as
 }
 
 func (p *Parser) parseFunctionParam() ast.Declaration {
-	typeSpec := p.parseTypeSpecificiation()
-	if len(typeSpec.Name) == 0 {
-		p.genericError("expected parameter declarator")
+	typeSpec := p.parseTypeSpecification()
+	if typeSpec == nil {
 		return nil
 	}
 	if !p.peekTokenIs(token.IDENTIFIER, token.ASTERISK, token.LPAREN) {
@@ -168,16 +166,16 @@ func (p *Parser) parseFunctionParam() ast.Declaration {
 	return p.parseDeclaratorLeft(typeSpec, false)
 }
 
-func (p *Parser) parseTypeSpecificiation() *ast.TypeSpecification {
+func (p *Parser) parseTypeSpecification() *ast.TypeSpecification {
 	typeSpec := &ast.TypeSpecification{}
-	var typeName bytes.Buffer
+	var typeNames []string
 	for {
 		if p.currTokenIs(token.CONST) {
 			typeSpec.Const = true
 		} else if p.currTokenIs(token.VOLATILE) {
 			typeSpec.Volatile = true
 		} else if p.currTokenIsType() {
-			typeName.WriteString(fmt.Sprintf("%s ", p.currToken.Literal))
+			typeNames = append(typeNames, p.currToken.Literal)
 		}
 
 		if p.peekTokenIsType() || p.peekTokenIsTypeQualifier() {
@@ -187,11 +185,13 @@ func (p *Parser) parseTypeSpecificiation() *ast.TypeSpecification {
 		}
 	}
 
-	tn := typeName.String()
-	if len(tn) > 0 { // remove trailing space
-		typeSpec.Name = tn[:len(tn)-1]
+	tn := strings.Join(typeNames, " ")
+	if len(tn) == 0 {
+		p.genericError("type specifier missing. implicit int is not supported by this compiler")
+		return nil
 	}
 
+	typeSpec.Name = tn
 	return typeSpec
 }
 
@@ -203,9 +203,8 @@ func (p *Parser) parseDeclarations() []ast.Declaration {
 		p.nextToken()
 	}
 
-	typeSpec := p.parseTypeSpecificiation()
-	if len(typeSpec.Name) == 0 {
-		p.genericError("type specifier missing. implicit int is not supported by this compiler")
+	typeSpec := p.parseTypeSpecification()
+	if typeSpec == nil {
 		return decls
 	}
 
