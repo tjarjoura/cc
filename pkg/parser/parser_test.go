@@ -63,13 +63,16 @@ func TestParseVariableDeclaration(t *testing.T) {
 		{"const long int **x;", "x", "", "((const long int) *) *"},
 		{"const int **const x;", "x", "", "((const int) *) * const"},
 		{"const int *volatile const const const*const x;", "x", "", "((const int) * const volatile) * const"},
-		{"int x[2];", "x", "", "(int)[]"},
-		{"int x[2][3];", "x", "", "((int)[])[]"},
-		{"int *x[2][3];", "x", "", "(((int) *)[])[]"},
-		{"int (*x)[2][3];", "x", "", "(((int)[])[]) *"},
-		{"int (*x[2])[3];", "x", "", "(((int)[]) *)[]"},
+		{"int x[2];", "x", "", "(int)[2]"},
+		{"int x[2+7-3];", "x", "", "(int)[((2 + 7) - 3)]"},
+		{"int x[(ident + 2)];", "x", "", "(int)[(ident + 2)]"},
+		{"int x[2][3];", "x", "", "((int)[3])[2]"},
+		{"int *x[2][3];", "x", "", "(((int) *)[3])[2]"},
+		{"int (*x)[2][3];", "x", "", "(((int)[3])[2]) *"},
+		{"int (*x[2])[3];", "x", "", "(((int)[3]) *)[2]"},
 		{"int (*fptr)();", "fptr", "", "(int ()) *"},
 		{"int (*fptr)(int);", "fptr", "", "(int (int)) *"},
+		{"char* (*(*foo[5])(char *))[];", "foo", "", "(((((char) *)[]) * ((char) *)) *)[5]"},
 	}
 
 	for _, tt := range tests {
@@ -98,7 +101,7 @@ func TestParseMultipleDeclarations(t *testing.T) {
 	}{
 		{"x", "long int"},
 		{"y", "(long int) *"},
-		{"z", "(long int)[]"},
+		{"z", "(long int)[3]"},
 		{"a", "(long int) * const"},
 	}
 
@@ -172,6 +175,9 @@ func TestParseFunctionDeclaration(t *testing.T) {
 	}{
 		{"int f();", "int f()"},
 		{"int f(int x);", "int f(int x)"},
+		{"int f(int *x);", "int f((int) * x)"},
+		{"int f(int*);", "int f((int) *)"},
+		{"int f(int **x);", "int f(((int) *) * x)"},
 		{"int f(int, int );", "int f(int, int)"},
 		{"int *f(int, int );", "(int) * f(int, int)"},
 		{"int **f(int, int );", "((int) *) * f(int, int)"},
@@ -209,7 +215,14 @@ func TestParseErrors(t *testing.T) {
 		{"int nosemicolon"},
 		{"int fn(incomplete"},
 		{"int (incomplete"},
-		//{"faketype g;"},
+		{"faketype g;"},
+		{"int x = 3 +;"},
+		{"int = 3;"},
+		{"int x[3-] ;"},
+		{"int x[3 ;"},
+		{"int (*x)( ;"},
+		{"int (((()))*x);"},
+		{"int *const 3;"},
 	}
 
 	for _, tt := range tests {

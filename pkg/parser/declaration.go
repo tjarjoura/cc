@@ -60,7 +60,7 @@ func (p *Parser) parseDeclaratorLeft(decl ast.Declaration, insideParen bool) ast
 		}
 
 		if !p.peekTokenIs(token.IDENTIFIER, token.LPAREN, token.ASTERISK) {
-			return decl
+			return pointer
 		}
 
 		p.nextToken()
@@ -71,6 +71,10 @@ func (p *Parser) parseDeclaratorLeft(decl ast.Declaration, insideParen bool) ast
 		}
 
 		interior := p.parseDeclaratorLeft(decl, true)
+		if interior == nil {
+			return nil
+		}
+
 		right := p.parseDeclaratorRight(decl, insideParen)
 
 		// We need to insert what we parsed from the right into the
@@ -107,6 +111,7 @@ func (p *Parser) parseDeclaratorRight(decl ast.Declaration, insideParen bool) as
 		// TODO parse expression for array size
 		var expr ast.Expression
 		if !p.peekTokenIs(token.RSQUARE) {
+			p.nextToken()
 			expr = p.parseExpression(LOWEST)
 		}
 
@@ -199,6 +204,10 @@ func (p *Parser) parseDeclarations() []ast.Declaration {
 	}
 
 	typeSpec := p.parseTypeSpecificiation()
+	if len(typeSpec.Name) == 0 {
+		p.genericError("type specifier missing. implicit int is not supported by this compiler")
+		return decls
+	}
 
 	for !p.peekTokenIs(token.SEMICOLON) && !p.peekTokenIs(token.EOF) {
 		if !p.expectPeek(token.IDENTIFIER, token.LPAREN, token.ASTERISK) {
