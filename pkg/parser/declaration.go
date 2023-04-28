@@ -43,69 +43,124 @@ func (p *Parser) peekTokenIsType() bool {
 		p.peekTokenIs(token.VOID)
 }
 
-func (p *Parser) parseDeclaratorLeft(t ast.Declaration) ast.Declaration {
+func (p *Parser) parseDeclaratorLeft(decl ast.Declaration, insideParen bool) ast.Declaration {
 	switch p.currToken.Type {
 	case token.ASTERISK:
-		pointer := &ast.Pointer{PointsTo: t}
+		pointer := &ast.Pointer{PointsTo: decl}
 		for {
-			p.nextToken()
-			if p.currTokenIs(token.CONST) {
+			if p.peekTokenIs(token.CONST) {
 				pointer.Const = true
-			} else if p.currTokenIs(token.VOLATILE) {
+			} else if p.peekTokenIs(token.VOLATILE) {
 				pointer.Volatile = true
 			} else {
 				break
 			}
+
+			p.nextToken()
 		}
 
-		return p.parseDeclaratorLeft(pointer)
-	case token.LPAREN:
-		p.nextToken()
-		interior := p.parseDeclaratorLeft(t)
-		right := p.parseDeclaratorRight(t)
+		if !p.peekTokenIs(token.IDENTIFIER, token.LPAREN, token.ASTERISK) {
+			return decl
+		}
 
-		// We need to swap out the inner most type with what we
-		// parsed from the right
+		p.nextToken()
+		return p.parseDeclaratorLeft(pointer, insideParen)
+	case token.LPAREN:
+		if !p.expectPeek(token.IDENTIFIER, token.LPAREN, token.ASTERISK) {
+			return nil
+		}
+
+		interior := p.parseDeclaratorLeft(decl, true)
+		right := p.parseDeclaratorRight(decl, insideParen)
+
+		// We need to insert what we parsed from the right into the
+		// declaration tree
 		t := interior
-		for t.Type() != nil && t.Type().Type() != nil {
+		for t.Type() != decl {
 			t = t.Type()
 		}
 
 		t.SetType(right)
+
 		return interior
 
 	case token.IDENTIFIER:
 		name := p.currToken.Literal
-		right := p.parseDeclaratorRight(t)
-		return &ast.VariableDeclaration{TypeSpec: right,
+		right := p.parseDeclaratorRight(decl, insideParen)
+		if fnDecl, ok := right.(*ast.FunctionDeclaration); ok {
+			fnDecl.Name = name
+			return fnDecl
+		}
+		return &ast.VariableDeclaration{VarType: right,
 			Name: name}
 	default:
+		p.genericError(fmt.Sprintf("internal bug: called parseDeclaratorLeft with unexpected token: %s",
+			p.currToken.Literal))
 		return nil
 	}
 }
 
-func (p *Parser) parseDeclaratorRight(decl ast.Declaration) ast.Declaration {
+func (p *Parser) parseDeclaratorRight(decl ast.Declaration, insideParen bool) ast.Declaration {
 	switch p.peekToken.Type {
 	case token.LSQUARE:
 		p.nextToken()
 		// TODO parse expression for array size
-		for !p.peekTokenIs(token.RSQUARE) && !p.peekTokenIs(token.EOF) {
-			p.nextToken()
+		var expr ast.Expression
+		if !p.peekTokenIs(token.RSQUARE) {
+			expr = p.parseExpression(LOWEST)
 		}
 
-		// TODO figure out how to handle syntax errors
 		if !p.expectPeek(token.RSQUARE) {
 			return nil
 		}
 
-		right := p.parseDeclaratorRight(decl)
-		return &ast.Array{ArrayOf: right}
-	case token.RPAREN:
+		right := p.parseDeclaratorRight(decl, insideParen)
+		return &ast.Array{ArrayOf: right, ArraySize: expr}
+	case token.LPAREN: // function declaration
 		p.nextToken()
+
+		params := []ast.Declaration{}
+		for !p.peekTokenIs(token.RPAREN) && !p.peekTokenIs(token.EOF) {
+			p.nextToken()
+			param := p.parseFunctionParam()
+			if param == nil {
+				return nil
+			}
+
+			params = append(params, param)
+			if p.peekTokenIs(token.COMMA) {
+				p.nextToken()
+			}
+		}
+
+		if !p.expectPeek(token.RPAREN) {
+			return nil
+		}
+
+		fnDecl := &ast.FunctionDeclaration{ReturnType: decl, Parameters: params}
+		return p.parseDeclaratorRight(fnDecl, insideParen)
+	case token.RPAREN:
+		if insideParen {
+			p.nextToken()
+		}
 		return decl
 	default:
 		return decl
 	}
+}
+
+func (p *Parser) parseFunctionParam() ast.Declaration {
+	typeSpec := p.parseTypeSpecificiation()
+	if len(typeSpec.Name) == 0 {
+		p.genericError("expected parameter declarator")
+		return nil
+	}
+	if !p.peekTokenIs(token.IDENTIFIER, token.ASTERISK, token.LPAREN) {
+		return typeSpec
+	}
+
+	p.nextToken()
+	return p.parseDeclaratorLeft(typeSpec, false)
 }
 
 func (p *Parser) parseTypeSpecificiation() *ast.TypeSpecification {
@@ -150,18 +205,18 @@ func (p *Parser) parseDeclarations() []ast.Declaration {
 			return nil
 		}
 
-		decl := p.parseDeclaratorLeft(typeSpec)
-		if p.peekTokenIs(token.ASSIGN) { // also define the variable
-			p.nextToken()
-			p.nextToken()
-			definition := p.parseExpression(LOWEST)
-			varDecl, ok := decl.(*ast.VariableDeclaration)
-			if ok {
-				varDecl.Definition = definition
+		d := p.parseDeclaratorLeft(typeSpec, false)
+		switch decl := d.(type) {
+		case *ast.VariableDeclaration:
+			if p.peekTokenIs(token.ASSIGN) { // also define the variable
+				p.nextToken()
+				p.nextToken()
+				decl.Definition = p.parseExpression(LOWEST)
 			}
+		case *ast.FunctionDeclaration:
 		}
 
-		decls = append(decls, decl)
+		decls = append(decls, d)
 
 		if p.peekTokenIs(token.COMMA) {
 			p.nextToken()

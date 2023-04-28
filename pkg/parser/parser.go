@@ -1,21 +1,10 @@
 package parser
 
 import (
-	"fmt"
-
 	"github.com/tjarjoura/cc/pkg/ast"
 	"github.com/tjarjoura/cc/pkg/lexer"
 	"github.com/tjarjoura/cc/pkg/token"
 )
-
-type ParseError struct {
-	msg   string
-	token token.Token
-}
-
-func (p *ParseError) String() string {
-	return fmt.Sprintf("[%d:%d] %s", p.token.Line, p.token.Column, p.msg)
-}
 
 type Parser struct {
 	l      *lexer.Lexer
@@ -42,12 +31,6 @@ func (p *Parser) Errors() []ParseError {
 	return p.errors
 }
 
-func (p *Parser) peekError(ts ...token.TokenType) {
-	msg := fmt.Sprintf("expected next token to be one of %v, got %s instead",
-		ts, p.peekToken.Type)
-	p.errors = append(p.errors, ParseError{msg: msg, token: p.peekToken})
-}
-
 func (p *Parser) nextToken() {
 	p.currToken = p.peekToken
 	p.peekToken = p.l.NextToken()
@@ -57,16 +40,19 @@ func (p *Parser) currTokenIs(t token.TokenType) bool {
 	return p.currToken.Type == t
 }
 
-func (p *Parser) peekTokenIs(t token.TokenType) bool {
-	return p.peekToken.Type == t
+func (p *Parser) peekTokenIs(ts ...token.TokenType) bool {
+	for _, t := range ts {
+		if p.peekToken.Type == t {
+			return true
+		}
+	}
+	return false
 }
 
 func (p *Parser) expectPeek(ts ...token.TokenType) bool {
-	for _, t := range ts {
-		if p.peekTokenIs(t) {
-			p.nextToken()
-			return true
-		}
+	if p.peekTokenIs(ts...) {
+		p.nextToken()
+		return true
 	}
 
 	p.peekError(ts...)

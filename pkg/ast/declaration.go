@@ -3,6 +3,7 @@ package ast
 import (
 	"bytes"
 	"fmt"
+	"strings"
 )
 
 type Declaration interface {
@@ -43,6 +44,11 @@ func (p *Pointer) Type() Declaration {
 }
 
 func (p *Pointer) SetType(decl Declaration) {
+	ptr, ok := decl.(*Pointer)
+	if ok && ptr == p {
+		panic("creating self-referential pointer!!")
+	}
+
 	p.PointsTo = decl
 }
 
@@ -54,8 +60,13 @@ type Array struct {
 func (a *Array) declarationNode() {}
 
 func (a *Array) String() string {
+	var expr = ""
+	if a.ArraySize != nil {
+		expr = a.ArraySize.String()
+	}
+
 	if a.ArrayOf != nil {
-		return fmt.Sprintf("(%s)[]", a.ArrayOf.String())
+		return fmt.Sprintf("(%s)[%s]", a.ArrayOf.String(), expr)
 	} else {
 		return fmt.Sprintf("(nil)[]") // shouldn't happen
 	}
@@ -101,19 +112,39 @@ func (t *TypeSpecification) SetType(d Declaration) {} // no op
 
 type StructOrUnionSpecification struct{} //TODO
 
-type VariableDeclaration struct {
-	StorageClass string
-	TypeSpec     Declaration
+type FunctionDeclaration struct {
 	Name         string
+	StorageClass string
+	ReturnType   Declaration
+	Parameters   []Declaration
+	Definition   *BlockStatement
+}
+
+func (f *FunctionDeclaration) declarationNode() {}
+func (f *FunctionDeclaration) String() string {
+	paramTypes := []string{}
+	for _, param := range f.Parameters {
+		paramTypes = append(paramTypes, param.String())
+	}
+
+	return fmt.Sprintf("%v %s(%s)", f.ReturnType.String(), f.Name,
+		strings.Join(paramTypes, ", "))
+}
+func (f *FunctionDeclaration) Type() Declaration     { return f.ReturnType }
+func (f *FunctionDeclaration) SetType(d Declaration) { f.ReturnType = d }
+
+type VariableDeclaration struct {
+	Name         string
+	StorageClass string
+	VarType      Declaration
 	Definition   Expression
 }
 
-func (v *VariableDeclaration) declarationNode() {}
-func (v *VariableDeclaration) String() string   { return "" }
-func (v *VariableDeclaration) Type() Declaration {
-	return v.TypeSpec
-}
+func (v *VariableDeclaration) declarationNode()      {}
+func (v *VariableDeclaration) String() string        { return fmt.Sprintf("%s %s", v.VarType, v.Name) }
+func (v *VariableDeclaration) Type() Declaration     { return v.VarType }
+func (v *VariableDeclaration) SetType(d Declaration) { v.VarType = d }
 
-func (v *VariableDeclaration) SetType(d Declaration) {
-	v.TypeSpec = d
+type BlockStatement struct {
+	Statements []Statement
 }

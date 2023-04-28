@@ -23,9 +23,9 @@ func testVariableDeclaration(t *testing.T, decl ast.Declaration,
 		return false
 	}
 
-	if varDecl.TypeSpec.String() != expectedType {
+	if varDecl.VarType.String() != expectedType {
 		t.Errorf("expected stmt.Type=%s, got=%s", expectedType,
-			varDecl.TypeSpec.String())
+			varDecl.VarType.String())
 		return false
 	}
 
@@ -52,6 +52,7 @@ func TestParseVariableDeclaration(t *testing.T) {
 		expectedType    string
 	}{
 		{"int x;", "x", "", "int"},
+		{"int longname;", "longname", "", "int"},
 		{"char ch;", "ch", "", "char"},
 		{"long long int x;", "x", "", "long long int"},
 		{"long const long int x;", "x", "", "const long long int"},
@@ -67,6 +68,8 @@ func TestParseVariableDeclaration(t *testing.T) {
 		{"int *x[2][3];", "x", "", "(((int) *)[])[]"},
 		{"int (*x)[2][3];", "x", "", "(((int)[])[]) *"},
 		{"int (*x[2])[3];", "x", "", "(((int)[]) *)[]"},
+		{"int (*fptr)();", "fptr", "", "(int ()) *"},
+		{"int (*fptr)(int);", "fptr", "", "(int (int)) *"},
 	}
 
 	for _, tt := range tests {
@@ -161,3 +164,78 @@ func TestParseExpression(t *testing.T) {
 		}
 	}
 }
+
+func TestParseFunctionDeclaration(t *testing.T) {
+	tests := []struct {
+		input      string
+		expectedFn string
+	}{
+		{"int f();", "int f()"},
+		{"int f(int x);", "int f(int x)"},
+		{"int f(int, int );", "int f(int, int)"},
+		{"int *f(int, int );", "(int) * f(int, int)"},
+		{"int **f(int, int );", "((int) *) * f(int, int)"},
+		{"int ***f();", "(((int) *) *) * f()"},
+		{"char (*(*func())[5])();", "(((char ()) *)[5]) * func()"},
+	}
+
+	for _, tt := range tests {
+		p := New(lexer.New(tt.input))
+		tUnit := p.Parse()
+		checkErrors(t, p)
+
+		decls := tUnit.Declarations
+		if len(decls) != 1 {
+			t.Fatalf("expected len(decls)=%d, got=%d\n", 1, len(decls))
+		}
+
+		fnDecl, ok := decls[0].(*ast.FunctionDeclaration)
+		if !ok {
+			t.Fatalf("expected decl to be *ast.FunctionDeclaration, got=%T",
+				decls[0])
+		}
+
+		if fnDecl.String() != tt.expectedFn {
+			t.Fatalf("expected fnDecl to=%s, got=%s", tt.expectedFn, fnDecl.String())
+		}
+	}
+}
+
+// make sure different syntax errors don't crash the program and are handled gracefully
+func TestParseErrors(t *testing.T) {
+	tests := []struct {
+		input string
+	}{
+		{"int nosemicolon"},
+		{"int fn(incomplete"},
+		{"int (incomplete"},
+		//{"faketype g;"},
+	}
+
+	for _, tt := range tests {
+		p := New(lexer.New(tt.input))
+		p.Parse()
+
+		if len(p.Errors()) == 0 {
+			t.Fatalf("Expected errors from %s but got 0.", tt.input)
+		}
+	}
+}
+
+/*
+func TestParseFunctionDefinition(t *testing.T) {
+	input := `
+int main(int argc, char **argv) {
+	return 0;
+}`
+
+	p := New(lexer.New(input))
+	tUnit := p.Parse()
+	checkErrors(t, p)
+
+	decls := tUnit.Declarations
+	if len(decls) != 1 {
+		t.Fatalf("expected len(decls)=%d, got=%d\n", 1, len(decls))
+	}
+}
+*/
