@@ -59,6 +59,7 @@ func TestParseVariableDeclaration(t *testing.T) {
 		{"volatile short x;", "x", "", "volatile short"},
 		{"static volatile short x;", "x", "static", "volatile short"},
 		{"extern int *x;", "x", "extern", "(int) *"},
+		{"register int *x;", "x", "register", "(int) *"},
 		{"int **x;", "x", "", "((int) *) *"},
 		{"const long int **x;", "x", "", "((const long int) *) *"},
 		{"const int **const x;", "x", "", "((const int) *) * const"},
@@ -70,7 +71,7 @@ func TestParseVariableDeclaration(t *testing.T) {
 		{"int *x[2][3];", "x", "", "(((int) *)[3])[2]"},
 		{"int (*x)[2][3];", "x", "", "(((int)[3])[2]) *"},
 		{"int (*x[2])[3];", "x", "", "(((int)[3]) *)[2]"},
-		{"int (*fptr)();", "fptr", "", "(int ()) *"},
+		{";;;int (*fptr)();", "fptr", "", "(int ()) *"},
 		{"int (*fptr)(int);", "fptr", "", "(int (int)) *"},
 		{"char* (*(*foo[5])(char *))[];", "foo", "", "(((((char) *)[]) * ((char) *)) *)[5]"},
 	}
@@ -81,12 +82,17 @@ func TestParseVariableDeclaration(t *testing.T) {
 		tUnit := p.Parse()
 		checkErrors(t, p)
 
-		if len(tUnit.Declarations) != 1 {
-			t.Fatalf("expected %d declarations, got=%d", 1,
-				len(tUnit.Declarations))
+		if len(tUnit.DeclarationStatements) != 1 {
+			t.Fatalf("expected %d declaration statements, got=%d", 1,
+				len(tUnit.DeclarationStatements))
 		}
 
-		decl := tUnit.Declarations[0]
+		if len(tUnit.DeclarationStatements[0].Declarations) != 1 {
+			t.Fatalf("expected %d declarations, got=%d", 1,
+				len(tUnit.DeclarationStatements))
+		}
+
+		decl := tUnit.DeclarationStatements[0].Declarations[0]
 		testVariableDeclaration(t, decl, tt.expectedType,
 			tt.expectedName, tt.expectedStorage)
 	}
@@ -107,9 +113,14 @@ func TestParseMultipleDeclarations(t *testing.T) {
 
 	p := New(lexer.New(input))
 	tUnit := p.Parse()
-	decls := tUnit.Declarations
 	checkErrors(t, p)
 
+	if len(tUnit.DeclarationStatements) != 1 {
+		t.Fatalf("expected len(tUnit.DeclarationStatements)=1, got=%d\n",
+			len(tUnit.DeclarationStatements))
+	}
+
+	decls := tUnit.DeclarationStatements[0].Declarations
 	if len(decls) != len(expectedDecls) {
 		t.Fatalf("expected len(decls)=%d, got=%d\n",
 			len(expectedDecls), len(decls))
@@ -146,15 +157,20 @@ func TestParseExpression(t *testing.T) {
 		tUnit := p.Parse()
 		checkErrors(t, p)
 
-		decls := tUnit.Declarations
-		if len(decls) != 1 {
-			t.Fatalf("expected len(decls)=%d, got=%d\n", 1, len(decls))
+		declStmts := tUnit.DeclarationStatements
+		if len(declStmts) != 1 {
+			t.Fatalf("expected len(declStmts)=%d, got=%d\n", 1, len(declStmts))
 		}
 
-		varDecl, ok := decls[0].(*ast.VariableDeclaration)
+		if len(declStmts[0].Declarations) != 1 {
+			t.Fatalf("expected len(declStmts[0].Declarations)=%d, got=%d\n", 1,
+				len(declStmts[0].Declarations))
+		}
+
+		varDecl, ok := declStmts[0].Declarations[0].(*ast.VariableDeclaration)
 		if !ok {
 			t.Fatalf("expected decl to be *ast.VariableDeclaration, got=%T",
-				decls[0])
+				declStmts[0].Declarations)
 		}
 
 		if varDecl.Definition == nil {
@@ -190,15 +206,20 @@ func TestParseFunctionDeclaration(t *testing.T) {
 		tUnit := p.Parse()
 		checkErrors(t, p)
 
-		decls := tUnit.Declarations
-		if len(decls) != 1 {
-			t.Fatalf("expected len(decls)=%d, got=%d\n", 1, len(decls))
+		declStmts := tUnit.DeclarationStatements
+		if len(declStmts) != 1 {
+			t.Fatalf("expected len(declStmts)=%d, got=%d\n", 1, len(declStmts))
 		}
 
-		fnDecl, ok := decls[0].(*ast.FunctionDeclaration)
+		if len(declStmts[0].Declarations) != 1 {
+			t.Fatalf("expected len(declStmts[0].Declarations)=%d, got=%d\n", 1,
+				len(declStmts[0].Declarations))
+		}
+
+		fnDecl, ok := declStmts[0].Declarations[0].(*ast.FunctionDeclaration)
 		if !ok {
 			t.Fatalf("expected decl to be *ast.FunctionDeclaration, got=%T",
-				decls[0])
+				declStmts[0].Declarations[0])
 		}
 
 		if fnDecl.String() != tt.expectedFn {
@@ -223,6 +244,7 @@ func TestParseErrors(t *testing.T) {
 		{"int (*x)( ;"},
 		{"int (((()))*x);"},
 		{"int *const 3;"},
+		{"int a, b(){};"},
 	}
 
 	for _, tt := range tests {

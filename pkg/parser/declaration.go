@@ -195,7 +195,7 @@ func (p *Parser) parseTypeSpecification() *ast.TypeSpecification {
 	return typeSpec
 }
 
-func (p *Parser) parseDeclarations() []ast.Declaration {
+func (p *Parser) parseDeclarations(topLevel bool) []ast.Declaration {
 	var decls = []ast.Declaration{}
 	var storageClass string
 	if p.currTokenIsStorageClass() {
@@ -214,17 +214,30 @@ func (p *Parser) parseDeclarations() []ast.Declaration {
 		}
 
 		d := p.parseDeclaratorLeft(typeSpec, false)
+		decls = append(decls, d)
+
 		switch decl := d.(type) {
 		case *ast.VariableDeclaration:
+			decl.StorageClass = storageClass
 			if p.peekTokenIs(token.ASSIGN) { // also define the variable
 				p.nextToken()
 				p.nextToken()
 				decl.Definition = p.parseExpression(LOWEST)
 			}
 		case *ast.FunctionDeclaration:
-		}
+			decl.StorageClass = storageClass
 
-		decls = append(decls, d)
+			// if this is the first declaration, there can also be a function definition
+			if len(decls) == 1 && p.peekTokenIs(token.LBRACE) {
+				if !topLevel {
+					p.genericError("function definition not allowed here")
+					return decls
+				}
+				p.nextToken()
+				decl.Body = p.parseBlockStatement()
+				goto end // we don't allow more than one declaration if we defined a function
+			}
+		}
 
 		if p.peekTokenIs(token.COMMA) {
 			p.nextToken()
@@ -235,12 +248,6 @@ func (p *Parser) parseDeclarations() []ast.Declaration {
 		return nil
 	}
 
-	for _, d := range decls {
-		varDecl, ok := d.(*ast.VariableDeclaration)
-		if ok {
-			varDecl.StorageClass = storageClass
-		}
-	}
-
+end:
 	return decls
 }

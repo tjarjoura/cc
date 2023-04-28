@@ -117,7 +117,7 @@ type FunctionDeclaration struct {
 	StorageClass string
 	ReturnType   Declaration
 	Parameters   []Declaration
-	Definition   *BlockStatement
+	Body         *BlockStatement
 }
 
 func (f *FunctionDeclaration) declarationNode() {}
@@ -144,7 +144,3 @@ func (v *VariableDeclaration) declarationNode()      {}
 func (v *VariableDeclaration) String() string        { return fmt.Sprintf("%s %s", v.VarType, v.Name) }
 func (v *VariableDeclaration) Type() Declaration     { return v.VarType }
 func (v *VariableDeclaration) SetType(d Declaration) { v.VarType = d }
-
-type BlockStatement struct {
-	Statements []Statement
-}

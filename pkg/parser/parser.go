@@ -60,10 +60,14 @@ func (p *Parser) expectPeek(ts ...token.TokenType) bool {
 }
 
 func (p *Parser) Parse() *ast.TranslationUnit {
-	tUnit := &ast.TranslationUnit{Declarations: []ast.Declaration{}}
+	tUnit := &ast.TranslationUnit{DeclarationStatements: []*ast.DeclarationStatement{}}
 	for !p.currTokenIs(token.EOF) {
-		decls := p.parseDeclarations()
-		tUnit.Declarations = append(tUnit.Declarations, decls...)
+		for p.currTokenIs(token.SEMICOLON) { // skip blank statements
+			p.nextToken()
+		}
+
+		decl := p.parseDeclarationStatement(true)
+		tUnit.DeclarationStatements = append(tUnit.DeclarationStatements, decl)
 		p.nextToken()
 	}
 	return tUnit
