@@ -291,6 +291,10 @@ int main(int argc, char **argv) {
 			declStmts[0].Declarations[0])
 	}
 
+	if len(fnDecl.Parameters) != 2 {
+		t.Fatalf("expected 2 parameters")
+	}
+
 	if fnDecl.Body == nil {
 		t.Fatalf("expected fnDecl.Body != nil")
 	}
