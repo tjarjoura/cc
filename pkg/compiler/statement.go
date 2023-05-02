@@ -3,7 +3,7 @@ package compiler
 import "github.com/tjarjoura/cc/pkg/ast"
 
 func (f *Function) compileStatement(stmt ast.Statement) {
-	switch s := stmt.(type) {
+	switch stmt.(type) {
 	case *ast.ReturnStatement:
 		// TODO always returning zero for now...
 		f.Instructions = append(f.Instructions,

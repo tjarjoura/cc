@@ -18,6 +18,8 @@ type Compiler struct {
 	errors []CompileError
 }
 
+func (c *Compiler) Errors() []CompileError { return c.errors }
+
 type CompileError struct {
 	token token.Token
 	msg   string
