@@ -59,7 +59,7 @@ type Address struct {
 
 func (i *Instruction) Assembly() string {
 	var out strings.Builder
-	out.WriteString(fmt.Sprintf("\t%s", i.neumonic))
+	out.WriteString(fmt.Sprintf("%s", i.neumonic))
 	if i.operandA != nil {
 		out.WriteString(fmt.Sprintf("\t%s", i.operandA.String()))
 		if i.operandB != nil {

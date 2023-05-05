@@ -27,7 +27,11 @@ type CompileError struct {
 }
 
 func (c *CompileError) String() string {
-	return c.msg
+	var prefix = "[ERROR]"
+	if c.warn {
+		prefix = "[WARN]"
+	}
+	return fmt.Sprintf("%s %s", prefix, c.msg)
 }
 
 type CompilationObject interface {

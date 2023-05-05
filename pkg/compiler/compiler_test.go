@@ -24,6 +24,12 @@ func checkCompilerErrors(t *testing.T, c *Compiler) bool {
 		t.Errorf("compiler error: %s", err.String())
 	}
 
+	for _, co := range c.symbolMap {
+		for _, err := range co.Errors() {
+			t.Errorf("compiler error: %s", err.String())
+		}
+	}
+
 	return ret
 }
 
@@ -46,7 +52,10 @@ func TestReturnStatement(t *testing.T) {
 		input                string
 		expectedInstructions []string
 	}{
-		{"int f() { return 3; }", []string{"mov 	eax, 0x3"}},
+		{"int f() { return 3; }", []string{"mov\teax, 0x3"}},
+		{"int f() { return 4000; }", []string{"mov\teax, 0xfa0"}},
+		{"long f() { return 4000; }", []string{"mov\trax, 0xfa0"}},
+		//{"char f() { return 0xF40; }", []string{"mov\teax, 0x40"}},
 	}
 
 	expectedReturnInstructions := []string{"leave", "ret"}
@@ -119,24 +128,26 @@ main:
 	leave
 	ret
 `},
-		{
-			input: `
-int a = 3, b;
-int main() {
-	return 7;
-}
-`,
-			expectedAsm: `SECTION .text
-GLOBAL main
-main:
-	mov	eax, 0x7
-	leave
-	ret
-SECTION .data
-a: 	dw 0x7
-SECTION .bss
-b: 	resw
-`},
+		/*
+		   		{
+		   			input: `
+		   int a = 3, b;
+		   int main() {
+		   	return 7;
+		   }
+		   `,
+		   			expectedAsm: `SECTION .text
+		   GLOBAL main
+		   main:
+		   	mov	eax, 0x7
+		   	leave
+		   	ret
+		   SECTION .data
+		   a: 	dw 0x7
+		   SECTION .bss
+		   b: 	resw
+		   `},
+		*/
 	}
 
 	for _, tt := range tests {

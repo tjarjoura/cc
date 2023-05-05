@@ -166,7 +166,7 @@ func ConvertError(to Declaration, from Declaration) bool {
 
 	if toType == fromType {
 		// TODO handle struct, union, and typedef types
-		return true
+		return false
 	}
 
 	for _, combo := range validCombinations {
