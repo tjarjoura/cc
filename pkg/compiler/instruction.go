@@ -39,10 +39,10 @@ var (
 	REG_RBP = &Register{"rbp", 8}
 	// ...
 	// 32 bit registers
-	REG_EAX = &Register{"eax", 8}
-	REG_EBX = &Register{"ebx", 8}
-	REG_ECX = &Register{"ecx", 8}
-	REG_EDX = &Register{"edx", 8}
+	REG_EAX = &Register{"eax", 4}
+	REG_EBX = &Register{"ebx", 4}
+	REG_ECX = &Register{"ecx", 4}
+	REG_EDX = &Register{"edx", 4}
 	// ...
 	// TODO add more as needed
 )
