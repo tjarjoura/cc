@@ -3,6 +3,7 @@ package ast
 import (
 	"bytes"
 	"fmt"
+	"reflect"
 	"strings"
 )
 
@@ -80,15 +81,16 @@ func (a *Array) SetType(decl Declaration) {
 	a.ArrayOf = decl
 }
 
-type TypeSpecification struct {
+type BaseType struct {
 	Name     string // "int" or "long long int" or custom typedef identifier "uint8_t" etc..
 	Const    bool
 	Volatile bool
+	Signed   bool
 }
 
-func (t *TypeSpecification) declarationNode() {}
+func (t *BaseType) declarationNode() {}
 
-func (t *TypeSpecification) String() string {
+func (t *BaseType) String() string {
 	var out bytes.Buffer
 
 	if t.Const {
@@ -104,11 +106,11 @@ func (t *TypeSpecification) String() string {
 	return out.String()
 }
 
-func (t *TypeSpecification) Type() Declaration {
+func (t *BaseType) Type() Declaration {
 	return nil
 }
 
-func (t *TypeSpecification) SetType(d Declaration) {} // no op
+func (t *BaseType) SetType(d Declaration) {} // no op
 
 type StructOrUnionSpecification struct{} //TODO
 
@@ -152,3 +154,32 @@ func (v *VariableDeclaration) String() string {
 
 func (v *VariableDeclaration) Type() Declaration     { return v.VarType }
 func (v *VariableDeclaration) SetType(d Declaration) { v.VarType = d }
+
+func ConvertError(to Declaration, from Declaration) bool {
+	validCombinations := [][]string{
+		[]string{"Array", "Pointer"},
+		[]string{"Array", "BaseType"},
+		[]string{"BaseType", "Pointer"},
+	}
+
+	toType, fromType := reflect.TypeOf(to).Name(), reflect.TypeOf(from).Name()
+
+	if toType == fromType {
+		// TODO handle struct, union, and typedef types
+		return true
+	}
+
+	for _, combo := range validCombinations {
+		if (toType == combo[0] && fromType == combo[1]) ||
+			(toType == combo[1] && fromType == combo[0]) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func ConvertWarn(to Declaration, from Declaration) bool {
+	// TODO implement
+	return false
+}

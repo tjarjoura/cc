@@ -2,7 +2,6 @@ package parser
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/tjarjoura/cc/pkg/ast"
 	"github.com/tjarjoura/cc/pkg/token"
@@ -154,7 +153,7 @@ func (p *Parser) parseDeclaratorRight(decl ast.Declaration, insideParen bool) as
 }
 
 func (p *Parser) parseFunctionParam() ast.Declaration {
-	typeSpec := p.parseTypeSpecification()
+	typeSpec := p.parseBaseType()
 	if typeSpec == nil {
 		return nil
 	}
@@ -166,16 +165,77 @@ func (p *Parser) parseFunctionParam() ast.Declaration {
 	return p.parseDeclaratorLeft(typeSpec, false)
 }
 
-func (p *Parser) parseTypeSpecification() *ast.TypeSpecification {
-	typeSpec := &ast.TypeSpecification{}
-	var typeNames []string
+// Kind of spaghetti code but the type naming rules in C are a bit all over the place
+func (p *Parser) combineTypeSpecifier(typeSpec string) string {
+	switch p.currToken.Type {
+	case token.SHORT:
+		if typeSpec == "int" {
+			return "short int"
+		}
+	case token.INT:
+		if typeSpec == "short" || typeSpec == "short int" {
+			return "short int"
+		} else if typeSpec == "long" || typeSpec == "long int" {
+			return "long int"
+		} else if typeSpec == "long long" || typeSpec == "long long int" {
+			return "long long int"
+		}
+	case token.LONG:
+		if typeSpec == "int" {
+			return "long int"
+		} else if typeSpec == "long int" || typeSpec == "long" {
+			return "long long int"
+		} else if typeSpec == "double" {
+			return "long double"
+		}
+	case token.DOUBLE:
+		if typeSpec == "long" || typeSpec == "long double" {
+			return "long double"
+		}
+	}
+
+	if typeSpec != p.currToken.Literal {
+		p.genericError(fmt.Sprintf(
+			"conflicting type specifier %s",
+			p.currToken.Literal))
+		return ""
+
+	}
+	return typeSpec
+
+}
+
+func (p *Parser) parseBaseType() *ast.BaseType {
+	typeSpec := &ast.BaseType{}
+	alreadySigned, alreadyTyped := false, false
+
 	for {
 		if p.currTokenIs(token.CONST) {
 			typeSpec.Const = true
 		} else if p.currTokenIs(token.VOLATILE) {
 			typeSpec.Volatile = true
+		} else if p.currTokenIs(token.UNSIGNED) || p.currTokenIs(token.SIGNED) {
+			if alreadySigned {
+				if typeSpec.Signed != p.currTokenIs(token.SIGNED) {
+					p.genericError(fmt.Sprintf(
+						"conflicting type specifier %s",
+						p.currToken.Literal))
+					return nil
+				}
+			} else {
+				alreadySigned = true
+				typeSpec.Signed = p.currTokenIs(token.SIGNED)
+			}
 		} else if p.currTokenIsType() {
-			typeNames = append(typeNames, p.currToken.Literal)
+			if !alreadyTyped {
+				typeSpec.Name = p.currToken.Literal
+				alreadyTyped = true
+			} else {
+				typeSpec.Name = p.combineTypeSpecifier(typeSpec.Name)
+				if typeSpec.Name == "" {
+					return nil
+				}
+			}
 		}
 
 		if p.peekTokenIsType() || p.peekTokenIsTypeQualifier() {
@@ -185,13 +245,13 @@ func (p *Parser) parseTypeSpecification() *ast.TypeSpecification {
 		}
 	}
 
-	tn := strings.Join(typeNames, " ")
-	if len(tn) == 0 {
+	if typeSpec.Name == "" {
 		p.genericError("type specifier missing. implicit int is not supported by this compiler")
 		return nil
+	} else if typeSpec.Name == "long" || typeSpec.Name == "short" { // append "int" for consistency
+		typeSpec.Name = fmt.Sprintf("%s int", typeSpec.Name)
 	}
 
-	typeSpec.Name = tn
 	return typeSpec
 }
 
@@ -203,7 +263,7 @@ func (p *Parser) parseDeclarations(topLevel bool) []ast.Declaration {
 		p.nextToken()
 	}
 
-	typeSpec := p.parseTypeSpecification()
+	typeSpec := p.parseBaseType()
 	if typeSpec == nil {
 		return decls
 	}

@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+/* AMD64 */
+
 // TODO add binary encoding, right now we are relying on NASM to convert to raw machine code
 type Instruction struct {
 	neumonic string
@@ -12,57 +14,47 @@ type Instruction struct {
 	operandB Operand
 }
 
-type OperandType string
-
-const (
-	OP_REG_DIRECT   OperandType = "OP_REG_DIRECT"
-	OP_REG_INDIRECT             = "OP_REG_INDIRECT"
-	OP_IMM_DIRECT               = "OP_IMM_DIRECT"
-	OP_IMM_INDIRECT             = "OP_IMM_INDIRECT"
-)
-
-// CPU Registers
-type RegisterName string
-
-const (
-	REG_RAX RegisterName = "rax"
-	REG_RBX              = "rbx"
-	REG_RCX              = "rcx"
-	REG_RDX              = "rdx"
-	REG_EAX              = "eax"
-	REG_EBX              = "ebx"
-	REG_ECX              = "ecx"
-	REG_EDX              = "edx"
-)
-
 type Operand interface {
 	String() string
+	Size() int
 }
 
 type Register struct {
-	Register RegisterName
-	Pointer  bool
+	name string
+	size int
 }
 
-func (r *Register) String() string {
-	if r.Pointer {
-		return fmt.Sprintf("[%s]", r.Register)
-	}
+func (r *Register) String() string { return r.name }
+func (r *Register) Size() int      { return r.size }
 
-	return string(r.Register)
+var (
+	// 64 bit registers
+	REG_RAX = &Register{"rax", 8}
+	REG_RBX = &Register{"rbx", 8}
+	REG_RCX = &Register{"rcx", 8}
+	REG_RDX = &Register{"rdx", 8}
+	REG_RDI = &Register{"rdi", 8}
+	REG_RSI = &Register{"rsi", 8}
+	REG_RSP = &Register{"rsp", 8}
+	REG_RBP = &Register{"rbp", 8}
+	// ...
+	// 32 bit registers
+	REG_EAX = &Register{"eax", 8}
+	REG_EBX = &Register{"ebx", 8}
+	REG_ECX = &Register{"ecx", 8}
+	REG_EDX = &Register{"edx", 8}
+	// ...
+	// TODO add more as needed
+)
+
+type ImmediateInt struct {
+	Value int64
 }
 
-type Immediate struct {
-	Value   int64
-	Pointer bool
-}
+func (i *ImmediateInt) String() string { return fmt.Sprintf("0x%x", i.Value) }
+func (i *ImmediateInt) Size() int      { return IntSize(uint64(i.Value)) }
 
-func (i *Immediate) String() string {
-	if i.Pointer {
-		return fmt.Sprintf("[0x%x]", i.Value)
-	}
-
-	return fmt.Sprintf("0x%x", i.Value)
+type Address struct {
 }
 
 func (i *Instruction) Assembly() string {
@@ -79,6 +71,10 @@ func (i *Instruction) Assembly() string {
 
 func Mov(opA Operand, opB Operand) *Instruction {
 	return &Instruction{neumonic: "mov", operandA: opA, operandB: opB}
+}
+
+func Leave() *Instruction {
+	return &Instruction{neumonic: "leave"}
 }
 
 func Ret() *Instruction {

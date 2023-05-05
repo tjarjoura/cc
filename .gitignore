@@ -1,5 +1,8 @@
 notes.txt
 *.c
+*.o
 *.swp
 playground/*
 cc
+test*
+a.out

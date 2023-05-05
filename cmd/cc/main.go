@@ -32,6 +32,7 @@ func checkCompilerErrors(c *compiler.Compiler) bool {
 }
 
 func main() {
+	log.SetFlags(0)
 	flag.Parse()
 	if flag.NArg() == 0 {
 		fmt.Println("No input files given.")
@@ -47,14 +48,14 @@ func main() {
 		p := parser.New(lexer.New(string(inp)))
 		tUnit := p.Parse()
 
-		if checkParserErrors(p) {
+		if !checkParserErrors(p) {
 			os.Exit(1)
 		}
 
 		c := compiler.New(tUnit)
 		c.Compile()
 
-		if checkCompilerErrors(c) {
+		if !checkCompilerErrors(c) {
 			os.Exit(1)
 		}
 

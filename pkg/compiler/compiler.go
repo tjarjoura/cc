@@ -23,6 +23,7 @@ func (c *Compiler) Errors() []CompileError { return c.errors }
 type CompileError struct {
 	token token.Token
 	msg   string
+	warn  bool
 }
 
 func (c *CompileError) String() string {
@@ -30,17 +31,32 @@ func (c *CompileError) String() string {
 }
 
 type CompilationObject interface {
-	assembly() string
+	Assembly() string
+	Errors() []CompileError
 }
 
 type Function struct {
 	Instructions []*Instruction
+	fnType       ast.Declaration
+
+	errors []CompileError
 }
 
-func (f *Function) assembly() string {
+func (f *Function) Errors() []CompileError { return f.errors }
+
+func (f *Function) err(msg string) {
+	f.errors = append(f.errors, CompileError{msg: msg, warn: false})
+}
+
+func (f *Function) warn(msg string) {
+	f.errors = append(f.errors, CompileError{msg: msg, warn: true})
+}
+
+func (f *Function) Assembly() string {
 	var out strings.Builder
 
 	for _, instr := range f.Instructions {
+		out.WriteString("\t")
 		out.WriteString(instr.Assembly())
 		out.WriteString("\n")
 	}
@@ -79,7 +95,7 @@ func (c *Compiler) WriteAssembly(w io.StringWriter) {
 			// TODO only if storage class != "static"
 			sections[TEXT].WriteString(fmt.Sprintf("GLOBAL %s\n", symbol))
 			sections[TEXT].WriteString(fmt.Sprintf("%s:\n", symbol))
-			sections[TEXT].WriteString(o.assembly())
+			sections[TEXT].WriteString(o.Assembly())
 		}
 	}
 
@@ -90,7 +106,7 @@ func (c *Compiler) WriteAssembly(w io.StringWriter) {
 }
 
 func (c *Compiler) compileFunction(fnDecl *ast.FunctionDeclaration) {
-	fn := &Function{}
+	fn := &Function{fnType: fnDecl.Type()}
 	c.symbolMap[fnDecl.Name] = fn
 
 	if fnDecl.Body != nil {
