@@ -15,16 +15,8 @@ func (f *Function) compileStatement(stmt ast.Statement) {
 			panic(fmt.Sprintf("Could not compile %s!", s.ReturnValue))
 		}
 
-		// TODO move to its own funtion
-		if ast.ConvertError(f.fnType, returnType) {
-			f.err(fmt.Sprintf(
-				"incompatible types when converting from %s to %s",
-				returnType.String(), f.fnType.String()))
-			return
-		} else if ast.ConvertWarn(f.fnType, returnType) {
-			f.warn(fmt.Sprintf(
-				"converting from %s to %s without a cast",
-				returnType.String(), f.fnType.String()))
+		returnValue = f.compileTypeConversion(f.fnType, returnType, returnValue)
+		if returnValue == nil { // error
 			return
 		}
 
@@ -37,7 +29,7 @@ func (f *Function) compileStatement(stmt ast.Statement) {
 
 		f.Instructions = append(f.Instructions,
 			Mov(returnReg, returnValue),
-			Leave(),
+			//Leave(),
 			Ret())
 	}
 }

@@ -88,7 +88,7 @@ func New(tUnit *ast.TranslationUnit) *Compiler {
 	return compiler
 }
 
-func (c *Compiler) WriteAssembly(w io.StringWriter) {
+func (c *Compiler) WriteAssembly(w io.StringWriter) error {
 	sections := map[string]*strings.Builder{
 		TEXT: &strings.Builder{},
 		//DATA: &strings.Builder{},
@@ -104,9 +104,16 @@ func (c *Compiler) WriteAssembly(w io.StringWriter) {
 	}
 
 	for section, data := range sections {
-		w.WriteString(fmt.Sprintf("SECTION %s\n", section))
-		w.WriteString(data.String())
+		if _, err := w.WriteString(fmt.Sprintf("SECTION %s\n", section)); err != nil {
+			return err
+		}
+
+		if _, err := w.WriteString(data.String()); err != nil {
+			return err
+		}
 	}
+
+	return nil
 }
 
 func (c *Compiler) compileFunction(fnDecl *ast.FunctionDeclaration) {

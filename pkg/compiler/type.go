@@ -1,6 +1,10 @@
 package compiler
 
-import "github.com/tjarjoura/cc/pkg/ast"
+import (
+	"fmt"
+
+	"github.com/tjarjoura/cc/pkg/ast"
+)
 
 var (
 	SizeToType = map[int]string{
@@ -60,4 +64,62 @@ func SizeOf(decl ast.Declaration) uint64 {
 		return 0
 	}
 
+}
+
+func (f *Function) compileTypeConversion(toType ast.Declaration,
+	fromType ast.Declaration, value Operand) Operand {
+	if ast.ConvertError(toType, fromType) {
+		f.err(fmt.Sprintf(
+			"incompatible types when converting from %s to %s",
+			fromType.String(), toType.String()))
+		return nil
+	} else if ast.ConvertWarn(toType, fromType) {
+		f.warn(fmt.Sprintf(
+			"converting from %s to %s without a cast",
+			fromType.String(), toType.String()))
+		return nil
+	}
+
+	return value
+
+	sizeDifference := SizeOf(fromType) - SizeOf(toType)
+	if sizeDifference == 0 {
+		return value
+	} else {
+		panic(fmt.Sprintf("can't handle type conversions: %s to %s!",
+			fromType.String(), toType.String()))
+	}
+	switch value.(type) {
+	case *ImmediateInt: // TODO
+		if sizeDifference > 0 { // getting smaller
+		} else { // getting bigger
+		}
+
+	}
+
+	/*
+		sizeDifference := SizeOf(fromType) - SizeOf(toType)
+		if !(fromType.Unsigned) {
+
+		}
+		if SizeOf(toType) == SizeOf(fromType) {
+			// nothing to do
+			return value
+		} else if SizeOf(toType) < SizeOf(fromType) {
+			switch v := value.(type) {
+			case *ImmediateInt:
+				return &ImmediateInt{Value: value & Bitmask(SizeOf(toType))}
+			case *Register:
+				f.Instructions = append(f.Instructions,
+					Shl(v),
+					Sar(v),
+				)
+			default:
+				panic("Can't handle operands of this type!")
+			}
+		} else {
+		}
+	*/
+
+	return value
 }
