@@ -2,6 +2,6 @@ notes.txt
 *.o
 *.swp
 playground/*
-cc
-test*
+/cc
+/test*
 a.out
