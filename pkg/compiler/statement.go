@@ -9,24 +9,20 @@ import (
 func (f *Function) compileStatement(stmt ast.Statement) {
 	switch s := stmt.(type) {
 	case *ast.ReturnStatement:
-		returnValue, returnType := f.compileExpression(s.ReturnValue)
+		returnValue := f.compileExpression(s.ReturnValue)
 		if returnValue == nil {
 			// TODO handle gracefully
 			panic(fmt.Sprintf("Could not compile %s!", s.ReturnValue))
 		}
 
-		returnValue = f.compileTypeConversion(f.fnType, returnType, returnValue)
+		returnValue = f.compileTypeConversion(f.Type, returnValue.Type(),
+			returnValue)
 		if returnValue == nil { // error
 			return
 		}
 
-		var returnReg = REG_EAX // default 32 bit register for return val
-		if SizeOf(f.fnType) > 4 {
-			returnReg = REG_RAX // need 64 bit register to hold return val
-		}
-
-		//returnValue = scaleValue(f.fnType, returnValue)
-
+		// TODO if return value is already in RAX, no need to mov()
+		returnReg := &RegisterOperand{Register: REG_RAX, _type: f.Type}
 		f.Instructions = append(f.Instructions,
 			Mov(returnReg, returnValue),
 			//Leave(),

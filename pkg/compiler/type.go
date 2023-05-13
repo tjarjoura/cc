@@ -2,12 +2,13 @@ package compiler
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/tjarjoura/cc/pkg/ast"
 )
 
 var (
-	SizeToType = map[int]string{
+	SizeToType = map[uint64]string{
 		1: "char",
 		2: "short",
 		4: "int",
@@ -28,7 +29,7 @@ var (
 	PtrSize uint64 = 8
 )
 
-func IntSize(val uint64) int {
+func IntSize(val uint64) uint64 {
 	if val <= 0xFF {
 		return 1
 	} else if val <= 0xFFFF {
@@ -63,7 +64,30 @@ func SizeOf(decl ast.Declaration) uint64 {
 		// Should never get here
 		return 0
 	}
+}
 
+func isPointer(d ast.Declaration) bool {
+	_, ok := d.(*ast.Pointer)
+	return ok
+}
+
+func isFloat(d ast.Declaration) bool {
+	b, ok := d.(*ast.BaseType)
+	if !ok {
+		return false
+	}
+
+	return strings.Contains(b.Name, "double") ||
+		strings.Contains(b.Name, "float")
+
+}
+
+func biggestType(a ast.Declaration, b ast.Declaration) ast.Declaration {
+	if SizeOf(b) > SizeOf(a) {
+		return b
+	}
+
+	return a
 }
 
 func (f *Function) compileTypeConversion(toType ast.Declaration,

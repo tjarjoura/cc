@@ -41,9 +41,17 @@ type CompilationObject interface {
 
 type Function struct {
 	Instructions []*Instruction
-	fnType       ast.Declaration
+	Type         ast.Declaration
 
-	errors []CompileError
+	errors     []CompileError
+	registers  map[*Register]bool
+	operations map[string]Operation
+}
+
+func NewFunction(t ast.Declaration) *Function {
+	fn := &Function{Type: t}
+	fn.registerOperations()
+	return fn
 }
 
 func (f *Function) Errors() []CompileError { return f.errors }
@@ -66,6 +74,21 @@ func (f *Function) Assembly() string {
 	}
 	return out.String()
 }
+
+func (f *Function) allocNextReg() *Register {
+	for _, reg := range REG_ORDER {
+		if !f.registers[reg] {
+			f.registers[reg] = true
+			return reg
+		}
+	}
+
+	panic("ran out of registers to use! (will fix this in the future)")
+}
+
+func (f *Function) allocReg(r *Register) { f.registers[r] = true }
+
+func (f *Function) freeReg(r *Register) { f.registers[r] = false }
 
 type Variable struct {
 	size    int
@@ -117,12 +140,12 @@ func (c *Compiler) WriteAssembly(w io.StringWriter) error {
 }
 
 func (c *Compiler) compileFunction(fnDecl *ast.FunctionDeclaration) {
-	fn := &Function{fnType: fnDecl.Type()}
-	c.symbolMap[fnDecl.Name] = fn
+	f := NewFunction(fnDecl.Type())
+	c.symbolMap[fnDecl.Name] = f
 
 	if fnDecl.Body != nil {
 		for _, stmt := range fnDecl.Body.Statements {
-			fn.compileStatement(stmt)
+			f.compileStatement(stmt)
 		}
 	}
 }
