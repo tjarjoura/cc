@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/tjarjoura/cc/pkg/ast"
@@ -23,9 +24,19 @@ var (
 	REG_ORDER = []*Register{REG_RAX, REG_RCX, REG_RDX}
 )
 
+type OperandType string
+
+const (
+	OP_TYPE_REGISTER  OperandType = "register"
+	OP_TYPE_ADDRESS               = "address"
+	OP_TYPE_IMMEDIATE             = "immediate"
+)
+
 type Register struct {
 	NameMap map[uint64]string
 }
+
+func (r *Register) String() string { return r.NameMap[8] }
 
 // TODO add binary encoding, right now we are relying on NASM to convert to raw machine code
 type Instruction struct {
@@ -38,16 +49,16 @@ type Operand interface {
 	String() string
 	Size() uint64
 	Type() ast.Declaration
+	OperandType() OperandType
 }
 
 func isImmediate(o Operand) bool {
-	_, ok := o.(Immediate)
-	return ok
+	return o.OperandType() == OP_TYPE_IMMEDIATE
 }
 
 type RegisterOperand struct {
-	_type    ast.Declaration
 	Register *Register
+	DataType ast.Declaration
 }
 
 func (r *RegisterOperand) String() string {
@@ -58,8 +69,9 @@ func (r *RegisterOperand) String() string {
 
 	return name
 }
-func (r *RegisterOperand) Size() uint64          { return SizeOf(r._type) }
-func (r *RegisterOperand) Type() ast.Declaration { return r._type }
+func (r *RegisterOperand) Size() uint64             { return SizeOf(r.DataType) }
+func (r *RegisterOperand) Type() ast.Declaration    { return r.DataType }
+func (r *RegisterOperand) OperandType() OperandType { return OP_TYPE_REGISTER }
 
 type Immediate interface {
 	Operand
@@ -70,17 +82,73 @@ type ImmediateInt struct {
 	Value int64
 }
 
-func (i *ImmediateInt) immediateOperand()     {}
-func (i *ImmediateInt) String() string        { return fmt.Sprintf("0x%x", i.Value) }
-func (i *ImmediateInt) Size() uint64          { return IntSize(uint64(i.Value)) }
-func (i *ImmediateInt) Type() ast.Declaration { return IntType(i.Value) }
+func (i *ImmediateInt) immediateOperand()        {}
+func (i *ImmediateInt) String() string           { return fmt.Sprintf("0x%x", i.Value) }
+func (i *ImmediateInt) Size() uint64             { return IntSize(uint64(i.Value)) }
+func (i *ImmediateInt) Type() ast.Declaration    { return IntType(i.Value) }
+func (i *ImmediateInt) OperandType() OperandType { return OP_TYPE_IMMEDIATE }
 
 type Address struct {
 	Base         *Register
 	Scale        *Register
 	Index        *Register
 	Displacement int64
-	_type        ast.Declaration
+	DataType     ast.Declaration
+}
+
+func (a *Address) Size() uint64             { return SizeOf(a.DataType) }
+func (a *Address) Type() ast.Declaration    { return a.DataType }
+func (a *Address) OperandType() OperandType { return OP_TYPE_ADDRESS }
+func (a *Address) String() string {
+	var result string
+	if a.Base != nil {
+		result = a.Base.String()
+	}
+
+	if a.Index != nil {
+		var scaledIndex string
+		if a.Scale != nil {
+			scaledIndex = fmt.Sprintf("%s*%s", a.Scale.String(),
+				a.Index.String())
+		} else {
+			scaledIndex = a.Index.String()
+		}
+
+		if result != "" {
+			result = fmt.Sprintf("%s + %s", result, scaledIndex)
+		} else {
+			result = scaledIndex
+		}
+	}
+
+	if a.Displacement != 0 {
+		absDisplacement := a.Displacement
+		if a.Displacement < 0 {
+			absDisplacement *= -1
+		}
+
+		displacement := fmt.Sprintf("0x%s",
+			strconv.FormatInt(absDisplacement, 16))
+
+		if result != "" {
+			if a.Displacement < 0 {
+				result = fmt.Sprintf("%s - %s",
+					result, displacement)
+			} else {
+				result = fmt.Sprintf("%s + %s",
+					result, displacement)
+			}
+		} else {
+			if a.Displacement < 0 {
+				result = displacement
+			} else {
+				result = fmt.Sprintf("-%s", displacement)
+			}
+		}
+	}
+
+	sizeMap := map[uint64]string{8: "qword", 4: "dword", 2: "word", 1: "byte"}
+	return fmt.Sprintf("%s [%s]", sizeMap[SizeOf(a.DataType)], result)
 }
 
 func (i *Instruction) Assembly() string {
@@ -95,14 +163,22 @@ func (i *Instruction) Assembly() string {
 	return out.String()
 }
 
-func Mov(opA Operand, opB Operand) *Instruction {
-	return &Instruction{neumonic: "mov", operandA: opA, operandB: opB}
-}
-
 func Leave() *Instruction {
 	return &Instruction{neumonic: "leave"}
 }
 
+func Mov(opA Operand, opB Operand) *Instruction {
+	return &Instruction{neumonic: "mov", operandA: opA, operandB: opB}
+}
+
+func Push(op Operand) *Instruction {
+	return &Instruction{neumonic: "push", operandA: op}
+}
+
 func Ret() *Instruction {
 	return &Instruction{neumonic: "ret"}
+}
+
+func Sub(opA Operand, opB Operand) *Instruction {
+	return &Instruction{neumonic: "sub", operandA: opA, operandB: opB}
 }

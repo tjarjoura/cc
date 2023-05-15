@@ -9,7 +9,7 @@ tccdump:
 asmrun:
 	nasm -f elf64 playground/test.asm && gcc -no-pie playground/test.o -o test && ./test
 asmdump:
-	nasm -f elf64 playground/test.asm && objdump -d playground/test.o
+	nasm -f elf64 playground/test.asm && objdump -Mintel -d playground/test.o
 tccrun:
 	tcc -o test playground/test.c && ./test
 gccrun:

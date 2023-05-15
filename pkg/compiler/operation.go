@@ -34,13 +34,15 @@ func (f *Function) compileArithmetic(op string, a Operand, b Operand) Operand {
 		b = a
 	} else {
 		resultReg = &RegisterOperand{Register: f.allocNextReg(),
-			_type: biggestType(a.Type(), b.Type())}
+			DataType: biggestType(a.Type(), b.Type())}
 		f.Instructions = append(f.Instructions, Mov(resultReg, a))
 	}
 
 	switch op {
+	case token.MINUS:
+		f.Instructions = append(f.Instructions, Sub(resultReg, b))
 	default:
-		f.err(fmt.Sprintf("Can't support %s yet", op))
+		f.err(fmt.Sprintf("Can't support operator '%s' yet", op))
 		return nil
 	}
 

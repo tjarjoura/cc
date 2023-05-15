@@ -82,6 +82,7 @@ func TestParseVariableDeclaration(t *testing.T) {
 		{";;;int (*fptr)();", "fptr", "", "(int ()) *"},
 		{"int (*fptr)(int);", "fptr", "", "(int (int)) *"},
 		{"char* (*(*foo[5])(char *))[];", "foo", "", "(((((char) *)[]) * ((char) *)) *)[5]"},
+		{"void *x;", "x", "", "(void) *"},
 	}
 
 	for _, tt := range tests {

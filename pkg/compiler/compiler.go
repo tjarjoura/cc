@@ -2,11 +2,11 @@ package compiler
 
 import (
 	"fmt"
-	"go/token"
 	"io"
 	"strings"
 
 	"github.com/tjarjoura/cc/pkg/ast"
+	"github.com/tjarjoura/cc/pkg/token"
 )
 
 type Compiler struct {
@@ -18,7 +18,17 @@ type Compiler struct {
 	errors []CompileError
 }
 
-func (c *Compiler) Errors() []CompileError { return c.errors }
+func (c *Compiler) Errors() map[string][]CompileError {
+	errors := map[string][]CompileError{
+		"global": c.errors,
+	}
+
+	for name, f := range c.symbolMap {
+		errors[name] = f.Errors()
+	}
+
+	return errors
+}
 
 type CompileError struct {
 	token token.Token
@@ -40,16 +50,23 @@ type CompilationObject interface {
 }
 
 type Function struct {
+	Name         string
 	Instructions []*Instruction
 	Type         ast.Declaration
 
-	errors     []CompileError
-	registers  map[*Register]bool
+	variables map[string]*Address
+	registers map[*Register]bool
+	errors    []CompileError
+
 	operations map[string]Operation
 }
 
 func NewFunction(t ast.Declaration) *Function {
-	fn := &Function{Type: t}
+	fn := &Function{
+		Type:      t,
+		variables: map[string]*Address{},
+		registers: map[*Register]bool{},
+	}
 	fn.registerOperations()
 	return fn
 }
@@ -87,8 +104,7 @@ func (f *Function) allocNextReg() *Register {
 }
 
 func (f *Function) allocReg(r *Register) { f.registers[r] = true }
-
-func (f *Function) freeReg(r *Register) { f.registers[r] = false }
+func (f *Function) freeReg(r *Register)  { f.registers[r] = false }
 
 type Variable struct {
 	size    int
@@ -148,6 +164,22 @@ func (c *Compiler) compileFunction(fnDecl *ast.FunctionDeclaration) {
 			f.compileStatement(stmt)
 		}
 	}
+
+	// prepend stack frame set up instructions
+	frameSize := uint64(0)
+	for _, v := range f.variables {
+		frameSize += SizeOf(v.DataType)
+	}
+
+	vp := &ast.Pointer{PointsTo: &ast.BaseType{Name: token.VOID}}
+	rbp := &RegisterOperand{REG_RBP, vp}
+	rsp := &RegisterOperand{REG_RSP, vp}
+
+	f.Instructions = append([]*Instruction{
+		Push(rbp),
+		Mov(rbp, rsp),
+		Sub(rsp, &ImmediateInt{Value: int64(frameSize)}),
+	}, f.Instructions...)
 }
 
 func (c *Compiler) Compile() {

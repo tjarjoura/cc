@@ -30,9 +30,22 @@ func checkParserErrors(p *parser.Parser) bool {
 
 func checkCompilerErrors(c *compiler.Compiler) bool {
 	ret := true
-	for _, err := range c.Errors() {
+	errorMap := c.Errors()
+	for _, err := range errorMap["global"] {
 		log.Printf("compiler error: %s\n", err.String())
 		ret = false
+	}
+
+	delete(errorMap, "global")
+	for name, errors := range errorMap {
+		if len(errors) > 0 {
+			log.Printf("in function %s:", name)
+		}
+
+		for _, err := range errors {
+			log.Printf("compiler error: %s", err.String())
+			ret = false
+		}
 	}
 
 	return ret
@@ -66,7 +79,7 @@ func compile(outputFile string, sourceFiles ...string) ([]string, error) {
 
 		if !checkCompilerErrors(c) {
 			return asmFiles,
-				fmt.Errorf("got parser errors for %s", inputFile)
+				fmt.Errorf("got compiler errors for %s", inputFile)
 		}
 
 		if outputFile == "" {
@@ -107,10 +120,10 @@ func assemble(outputFile string, asmFiles ...string) ([]string, error) {
 	for _, asmFile := range asmFiles {
 		args := append([]string{"-f", "elf64"}, asmFile)
 		cmd := exec.Command("nasm", args...)
-		if err := cmd.Run(); err != nil {
+		if out, err := cmd.CombinedOutput(); err != nil {
 			return objFiles, fmt.Errorf(
-				"got error when trying to assemble using nasm: %s",
-				err)
+				"got error when trying to assemble using nasm: %s\ncommand output:\n%s",
+				err, string(out))
 		}
 
 		objFiles = append(objFiles,

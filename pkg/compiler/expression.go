@@ -16,8 +16,9 @@ func (f *Function) compileInfixExpression(inf *ast.InfixExpression) Operand {
 
 	op, ok := f.operations[inf.Operator]
 	if !ok {
-		panic(fmt.Sprintf(
+		f.err(fmt.Sprintf(
 			"Can not handle %s operators!", inf.Operator))
+		return nil
 	}
 
 	if isImmediate(leftE) && isImmediate(rightE) {
@@ -51,7 +52,7 @@ func (f *Function) compileExpression(expr ast.Expression) Operand {
 	case *ast.InfixExpression:
 		return f.compileInfixExpression(e)
 	case *ast.Identifier:
-		return nil
+		return f.variables[e.Value]
 	case *ast.IntegerLiteral:
 		return &ImmediateInt{Value: e.Value}
 	}

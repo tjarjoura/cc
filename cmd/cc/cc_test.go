@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -11,8 +12,21 @@ import (
 	"testing"
 )
 
+func dumpFiles(t *testing.T, files ...string) {
+	for _, f := range files {
+		contents, err := os.ReadFile(f)
+		if err != nil {
+			t.Errorf("failed to read %s: %s", f, err)
+		} else {
+			t.Logf("%s:\n%s", f, contents)
+		}
+	}
+}
+
 // Compile and check the status codes of all test programs
 func TestCC(t *testing.T) {
+	log.SetFlags(0)
+
 	_, thisFile, _, _ := runtime.Caller(0)
 	testDir := path.Dir(thisFile)
 
@@ -45,7 +59,9 @@ func TestCC(t *testing.T) {
 
 			objFiles, err = assemble("", asmFiles...)
 			if err != nil {
-				t.Fatalf("error assembling %s: %s", f.Name(), err)
+				t.Errorf("error assembling %s: %s", f.Name(), err)
+				dumpFiles(t, asmFiles...)
+				t.FailNow()
 			}
 
 			if err := link(outFile, objFiles...); err != nil {
@@ -54,7 +70,9 @@ func TestCC(t *testing.T) {
 
 			cmd := exec.Command(outFile)
 			if err := cmd.Run(); err != nil {
-				t.Fatalf("error running %s: %s", outFile, err)
+				t.Errorf("error running %s: %s", outFile, err)
+				dumpFiles(t, asmFiles...)
+				t.FailNow()
 			}
 		})
 	}
