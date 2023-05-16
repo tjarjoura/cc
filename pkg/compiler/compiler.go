@@ -56,6 +56,7 @@ type Function struct {
 
 	variables map[string]*Address
 	registers map[*Register]bool
+	frameSize int64
 	errors    []CompileError
 
 	infixOperations  map[string]InfixOperation
@@ -166,12 +167,6 @@ func (c *Compiler) compileFunction(fnDecl *ast.FunctionDeclaration) {
 		}
 	}
 
-	// prepend stack frame set up instructions
-	frameSize := uint64(0)
-	for _, v := range f.variables {
-		frameSize += SizeOf(v.DataType)
-	}
-
 	vp := &ast.Pointer{PointsTo: &ast.BaseType{Name: token.VOID}}
 	rbp := &RegisterOperand{REG_RBP, vp}
 	rsp := &RegisterOperand{REG_RSP, vp}
@@ -179,7 +174,7 @@ func (c *Compiler) compileFunction(fnDecl *ast.FunctionDeclaration) {
 	f.Instructions = append([]*Instruction{
 		Push(rbp),
 		Mov(rbp, rsp),
-		Sub(rsp, &ImmediateInt{Value: int64(frameSize)}),
+		Sub(rsp, &ImmediateInt{Value: f.frameSize}),
 	}, f.Instructions...)
 }
 
