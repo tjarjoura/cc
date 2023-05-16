@@ -2,18 +2,69 @@ package compiler
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/tjarjoura/cc/pkg/token"
 )
 
 type (
-	immediateCompileFn func(string, Immediate, Immediate) Immediate
-	runtimeCompileFn   func(string, Operand, Operand) Operand
+	infixImmediateCompileFn  func(string, Immediate, Immediate) Immediate
+	infixRuntimeCompileFn    func(string, Operand, Operand) Operand
+	prefixImmediateCompileFn func(string, Immediate) Immediate
+	prefixRuntimeCompileFn   func(string, Operand) Operand
 )
 
-type Operation struct {
-	CompileImmediate immediateCompileFn
-	CompileRuntime   runtimeCompileFn
+type InfixOperation struct {
+	CompileImmediate infixImmediateCompileFn
+	CompileRuntime   infixRuntimeCompileFn
+}
+
+type PrefixOperation struct {
+	CompileImmediate prefixImmediateCompileFn
+	CompileRuntime   prefixRuntimeCompileFn
+}
+
+func (f *Function) compilePrefixArithmetic(operator string, operand Operand,
+) Operand {
+	var resultReg Operand = operand
+	if operand.OperandType() != OP_TYPE_REGISTER {
+		resultReg = &RegisterOperand{Register: f.allocNextReg(),
+			DataType: operand.Type()}
+		f.Instructions = append(f.Instructions, Mov(resultReg, operand))
+	}
+
+	switch operator {
+	case token.MINUS:
+		f.Instructions = append(f.Instructions, Neg(resultReg))
+	default:
+		f.err(fmt.Sprintf(
+			"cannot handle prefix operator '%s' at runtime",
+			operator))
+		return nil
+	}
+
+	return resultReg
+}
+
+func (f *Function) compilePrefixArithmeticImm(operator string, operand Immediate,
+) Immediate {
+	log.Println("called compilePrefixArithmeticImm")
+	if isFloat(operand.Type()) {
+		f.err("floating point arithmetic is not supported")
+		return nil
+	}
+
+	val := operand.(*ImmediateInt).Value
+
+	switch operator {
+	case token.MINUS:
+		return &ImmediateInt{Value: -1 * val}
+	}
+
+	f.err(fmt.Sprintf(
+		"cannot handle prefix operator '%s' at compile time",
+		operator))
+	return nil
 }
 
 func (f *Function) compileArithmetic(op string, a Operand, b Operand) Operand {
@@ -39,10 +90,13 @@ func (f *Function) compileArithmetic(op string, a Operand, b Operand) Operand {
 	}
 
 	switch op {
+	case token.PLUS:
+		f.Instructions = append(f.Instructions, Add(resultReg, b))
 	case token.MINUS:
 		f.Instructions = append(f.Instructions, Sub(resultReg, b))
 	default:
-		f.err(fmt.Sprintf("Can't support operator '%s' yet", op))
+		f.err(fmt.Sprintf(
+			"cannot handle infix operator %s at runtime", op))
 		return nil
 	}
 
@@ -84,10 +138,14 @@ func compileArithmeticImm(op string, a Immediate, b Immediate) Immediate {
 }
 
 func (f *Function) registerOperations() {
-	f.operations = map[string]Operation{
+	f.infixOperations = map[string]InfixOperation{
 		token.PLUS:     {compileArithmeticImm, f.compileArithmetic},
 		token.MINUS:    {compileArithmeticImm, f.compileArithmetic},
 		token.ASTERISK: {compileArithmeticImm, f.compileArithmetic},
 		token.SLASH:    {compileArithmeticImm, f.compileArithmetic},
+	}
+
+	f.prefixOperations = map[string]PrefixOperation{
+		token.MINUS: {f.compilePrefixArithmeticImm, f.compilePrefixArithmetic},
 	}
 }

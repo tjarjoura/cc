@@ -163,12 +163,20 @@ func (i *Instruction) Assembly() string {
 	return out.String()
 }
 
+func Add(opA Operand, opB Operand) *Instruction {
+	return &Instruction{neumonic: "add", operandA: opA, operandB: opB}
+}
+
 func Leave() *Instruction {
 	return &Instruction{neumonic: "leave"}
 }
 
 func Mov(opA Operand, opB Operand) *Instruction {
 	return &Instruction{neumonic: "mov", operandA: opA, operandB: opB}
+}
+
+func Neg(op Operand) *Instruction {
+	return &Instruction{neumonic: "neg", operandA: op}
 }
 
 func Push(op Operand) *Instruction {

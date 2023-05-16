@@ -114,6 +114,8 @@ func (p *Parser) registerParseFns() {
 	p.prefixParseFns[token.NOT] = p.parsePrefixExpression
 	p.prefixParseFns[token.ASTERISK] = p.parsePrefixExpression
 	p.prefixParseFns[token.AMP] = p.parsePrefixExpression
+	p.prefixParseFns[token.MINUS] = p.parsePrefixExpression
+	p.prefixParseFns[token.PLUS] = p.parsePrefixExpression
 
 	p.infixParseFns[token.ASSIGN] = p.parseInfixExpression
 	p.infixParseFns[token.PLUS] = p.parseInfixExpression

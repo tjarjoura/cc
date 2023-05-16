@@ -58,7 +58,8 @@ type Function struct {
 	registers map[*Register]bool
 	errors    []CompileError
 
-	operations map[string]Operation
+	infixOperations  map[string]InfixOperation
+	prefixOperations map[string]PrefixOperation
 }
 
 func NewFunction(t ast.Declaration) *Function {
